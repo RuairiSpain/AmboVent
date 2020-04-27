@@ -1102,6 +1102,7 @@ void read_IO()
     TSTtemp = (1 - digitalRead(pin_TST));
     SW2temp = (1 - digitalRead(PIN_SW2));
 
+    //Can this set of if blocks be commented to make it readable to non-core developers
     if (SW2temp == 1)
     {
         counter_ON += 1;
@@ -1159,37 +1160,20 @@ void read_IO()
     A_pot = analogRead(pin_POT);
     if (invert_pot)
         A_pot = 1023 - A_pot;
-    A_current = analogRead(pin_CUR) / 8;  // in tenth Amps
+    A_current = analogRead(pin_CUR) / 8;  // in tenth Amps  //No current sensor in BOM.  Is this line and all code related to pin_CUR needed?
     if (control_with_pot)
     {
-        A_rate = analogRead(pin_FRQ);
-        A_comp = analogRead(pin_AMP);
-        A_pres = analogRead(pin_PRE);
-        if (abs(pot_rate - A_rate) < 5)
-            pot_rate = POT_ALPHA * pot_rate + (1 - POT_ALPHA) * A_rate;
-        else
-            pot_rate = A_rate;
-        if (abs(pot_comp - A_comp) < 5)
-            pot_comp = POT_ALPHA * pot_comp + (1 - POT_ALPHA) * A_comp;
-        else
-            pot_comp = A_comp;
-        if (abs(pot_pres - A_pres) < 5)
-            pot_pres = POT_ALPHA * pot_pres + (1 - POT_ALPHA) * A_pres;
-        else
-            pot_pres = A_pres;
-        A_comp = range_pot(int(pot_comp), comp_pot_low, comp_pot_high);
-        A_rate = range_pot(int(pot_rate), rate_pot_low, rate_pot_high);
-        A_pres = range_pot(int(pot_pres), pres_pot_low, pres_pot_high);
-
+        analogReadPots();
+        //This calculation should be in a function to make it easier to modify and add more safe guards
         Compression_perc = LOWER_VOLUME_DISPLAY_PERCENT
                            + int(float(A_comp) * (100 - LOWER_VOLUME_DISPLAY_PERCENT) / 1023);
-        Compression_perc = constrain(Compression_perc, LOWER_VOLUME_DISPLAY_PERCENT, 100);
+        Compression_perc = constrain(Compression_perc, LOWER_VOLUME_DISPLAY_PERCENT, 100);   //Need alarm if this value is outside the range
 
         BPM = 6 + (A_rate - 23) / 55;           // 0 is 6 breaths per minute, 1023 is 24 BPM
         breath_cycle_time = 60000 / BPM + 100;  // in milisec
 
-        insp_pressure = 30 + A_pres / 25;  // 0 is 30 mBar, 1023 is 70 mBar
-        insp_pressure = constrain(insp_pressure, 30, 70);
+        insp_pressure = 30 + A_pres / 25;  // 0 is 30 mBar, 1023 is 70 mBar   //Most of this calculation should be in a function to make it easier to modify and add more safe guards
+        insp_pressure = constrain(insp_pressure, 30, 70);  //Need alarm if this value is outside the range
         if (abs(insp_pressure - prev_insp_pressure) > 1)
         {
             prev_insp_pressure = insp_pressure;
@@ -1230,7 +1214,7 @@ void read_IO()
             {
                 Compression_perc += DELTA_COMPRESSION_PERCENT;
                 if (Compression_perc > 100)
-                    Compression_perc = 100;
+                    Compression_perc = 100; 
             }
         }
         if (TST == 1)
@@ -1268,9 +1252,9 @@ void read_IO()
                              * (100 - LOWER_VOLUME_PERCENT) / (100 - LOWER_VOLUME_DISPLAY_PERCENT);
         range_factor = range_factor / 100;
         if (range_factor > 1)
-            range_factor = 1;
+            range_factor = 1; //Need alarm if this line is executed
         if (range_factor < 0)
-            range_factor = 0;
+            range_factor = 0; //Need alarm if this line is executed
     }
 
 #if (PRESSURE_SENSOR_AVAILABLE == 1)
@@ -1280,7 +1264,7 @@ void read_IO()
             last_read_pres = millis();
             pressure_abs = int(sparkfumPress.getPressure(ADC_4096) - pressure_baseline);  // mbar
             if (pressure_abs < 0)
-                pressure_abs = 0;
+                pressure_abs = 0;  //Need alarm if this line is executed
         }
     }
 #endif
@@ -1288,10 +1272,32 @@ void read_IO()
     if (prev_BPM != BPM || prev_Compression_perc != Compression_perc)
         display_LCD();
     wanted_cycle_time = int(100) * int(motion_time) / profile_length;
+
+    
     if (wanted_cycle_time > breath_cycle_time / profile_length)
         wanted_cycle_time = breath_cycle_time / profile_length;
     if (wanted_cycle_time < cycleTime)
         wanted_cycle_time = cycleTime;
+}
+
+void analogReadPots()
+{
+    //This pin input conversion to valid compression, rate and pressure should be refactored into a function
+    A_comp = low_pass_filter(pin_AMP, A_comp, pot_comp, comp_pot_low, comp_pot_high);
+    A_rate = low_pass_filter(pin_FRQ, A_rate, pot_rate, rate_pot_low, rate_pot_high);
+    A_pres = low_pass_filter(pin_PRE, A_pres, pot_pres, pres_pot_low, pres_pot_high);
+}
+
+int low_pass_filter(pin, current_value, old_value, low, high)
+{
+    int value;
+    analogRead(pin);  //read the input pin
+    if (abs(current_value - old_value) < 5) {
+        value = POT_ALPHA * current_value + (1 - POT_ALPHA) * old_value;  
+        return map(value, 0, 1023, low, high); // maps 0-1023 to low-max range, check 
+    }
+    else
+        return old_value;
 }
 
 bool is_starting_respiration()
