@@ -1,0 +1,100 @@
+Ambovent review
+
+
+
+
+Code:
+
+Folder: https://github.com/AmboVent-1690-108/AmboVent/tree/master/Pressure%20Sensor
+Comments:
+Pressure sensor:
+Add second cheaper pressure sensor.  Position it after the one-way
+filter from the exhalation tube (after Y-splitter) and before the HEPA
+viral/bacterial filter.  Only used for calibration and monitoring
+atmosphere pressure.  For calibration put both sensors in atmosphere
+and compare readings over a range of pressures, create a correlation R
+value to see how well they are aligned, if huge R then need factory
+reset/re-calibration.
+Keep cheap pressure sensor monitoring atmospheric pressure and
+expensive sensor for airway pressure.  Adjust airway pressure
+on-the-fly if the atmospheric pressure increase significantly using an
+average windowed calculation.  Monitor atmospheric pressure for quick
+time window standard deviation, trigger apart if stddev is in flux for
+too long...unstable environment pressure means the expensive sensor
+will be giving poor readings.
+Also like to consider adding a 3rd cheap pressure sensor as a fallback
+and to average the readings of the airway pressure.  Could be position
+closer to the airway outlet after the Y-connector (intubation
+trachea).  Ideally we need 3 pressure sensors(1 expensive and 2
+cheap).  Three sensors will gives us enough for waveform graphics.
+See sensor layout in diagram:
+https://images.app.goo.gl/cc7JyVUXGTfKgZH17
+
+One close to the trachea oxygen flow, after the humidifier (expensive)
+One before the Y-connector for inhalation flow (cheap)
+One after the one-way filter from the exhalation tube and before the
+HEPA viral/bacterial filter (cheap)
+
+Ideally we setup the 3 pressure sensors as follows:
+https://www.sensirion.com/images/sensirion-medical-specialist-article-en-figure-1-8392e.jpg
+
+Example:#Aliexpress € 0,51  15%OFF | MPS20N0040D-D Sphygmomanometer
+Pressure Sensor 0-40kPa DIP-6 For Arduino
+https://a.aliexpress.com/_BSwyzm
+
+Pressure sensor box:
+Box is completely sealed.  Is this a one-time sensor per patient?  If
+not how are the vent operators going to disinfect it after each
+patient?
+From photos pressure box looks too too smalls, looks like ABS has
+stress bending?
+Why is there only one air tube going into the pressure box?  This
+airflow is broken inside the box and this will affect the pressure
+measurements, adding signal noise.  My understanding is it should be a
+pass-through enclosure to let the air low freely from inlet to outlet.
+Consider changing the rectangular box design into a standard 22mm tube
+connector that allows direct pass-through, see this image (without top
+cover): https://external-content.duckduckgo.com/iu/?u=http%3A%2F%2Fwww.electronics-sourcing.com%2Fwp-content%2Fuploads%2F2016%2F11%2FSensirion_Mass_Flow_Meter_SFM3300-D_300dpi-1.jpg&f=1&nofb=1
+We could take this commercial connector and adapt the 3D model
+https://bandb-medical.com/accutach-pneumotach-flow-sensor/ or
+https://stores.ventilatorsplus.com/15972-Flow-Sensor-II-Carefusion-Vela-Ventilator-Discontinued_p_26.html
+For information on airflow CFD and sensor noise, read:
+https://www.soselectronic.com/articles/sensirion/sensirion-the-sensor-company-2333
+
+Electronics
+
+BOM
+Motor choice is different to other ventilator projects.  Snow blower
+hex shaft not standard.  Are they both able to run 24x7 for 30 days
+without heat sinks?
+Drivers: can we switch to a Arduino driver shield?  Easier to source
+international and $20 cheaper.  Also has more mosfet outlets.  What is
+the necessary torque and speed needed for the bad? Could we use a
+stepper servo motor and drop the driver?
+
+What's the benefit of Arduino Nano? Uno R3 has easier build and easier
+to get international.  Also has build-in power regulator to reduce
+risk of power spike and frying board.  A power plug can push more Amps
+for more peripherals.  Cost difference is 2€ between Nano and Uno R3
+If we are going to add more controls input or output, we should
+consider Arduino Mega, to get more digital and PWM IO pins
+
+16x12 LCD IC2 could be upgraded to a larger LCD display.  Better
+contrast, large, allows waveform graphic.
+Alternative:
+#Aliexpress € 8,42  11%OFF | diymore 128x64 Dots Graphic 12864 LCD
+Display Module with Backlight ST7920 IIC I2C SPI for Arduino Raspberry
+Pi STM32 3D Printer
+https://a.aliexpress.com/_BOyQ9e
+
+Or option is LCD touchscreen: more pixels, color, remove pots/knobs,
+improve hygiene
+#Aliexpress € 8,83  6%OFF | NEW 3.95 inch 4.0 inch 320*480 TFT Color
+LCD Display Module Screen ST7796S Drive Board with Touch Panel For
+Arduino UNO Mega2560
+https://a.aliexpress.com/_B0WPYs
+
+
+My notes (Reference material for Ruairi only):
+Tubing assembly sample:
+https://image.slidesharecdn.com/rccrcmechanicalventilation1-170829075318/95/mechanical-ventilation-101-18-638.jpg?cb=1503993415
