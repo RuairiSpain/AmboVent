@@ -161,7 +161,7 @@ Use the Rate potentiometer to move the arm up/down.
 #define pin_PRE 6  // analog pin of pressure potentiometer control
 
 // Talon SR or SPARK controller PWM settings ("angle" for Servo library)
-#define PWM_mid 93  // was 93 -   mid value for PWM 0 motion - higher pushes up
+#define PWM_mid 93  // was 93 -   mid value for PWM 0 motion - higher pushes up  //Is this specifc to the snow blower motor?
 #define PWM_max 85
 #define PWM_min -85
 #define max_allowed_current 100  // 100=10 Amps
@@ -287,7 +287,6 @@ int16_t A_rate;
 int16_t A_comp;
 int16_t A_pres;
 
-int16_t motorPWM;
 int16_t index = 0;
 int16_t prev_index;
 int16_t i;
@@ -434,6 +433,7 @@ void setup()
 /// @return     None
 void loop()
 {
+    unsigned long time = millis();
     read_IO();
     switch (state)
     {
@@ -445,8 +445,8 @@ void loop()
             initialize_breath();
         }
         if (TST == 0)
-            last_TST_not_pressed = millis();
-        if (millis() - last_TST_not_pressed > 3000)
+            last_TST_not_pressed = time;
+        if (time - last_TST_not_pressed > 3000)
         {
             LED_USR(1);
             while (TST == 1 || TST_pressed)
@@ -469,18 +469,20 @@ void loop()
         break;
     }
 
-    if (millis() - last_sent_data > 20)
+    if (time - last_sent_data > 20)
     {
         if (SEND_TO_MONITOR && !TELEMETRY)
             send_data_to_monitor();
         if (TELEMETRY)
             print_tele();
-        last_sent_data = millis();
+        last_sent_data = time;
     }
 }
 
 void display_menu()
 {
+    unsigned long time;
+
     menu_state = map(pot_rate, 0, 1023, 0, 8);
     menu_state = constrain(menu_state, 0, 8);
     switch (menu_state)
@@ -539,16 +541,12 @@ void display_menu()
             {
                 read_IO();
                 motion_time = map(pot_rate, 0, 1023, 25, 50);
-                motion_time = constrain(motion_time, 25, 50);
-                if (millis() - lastUSRblink > 100)
+                time = millis();                
+                if (time - lastUSRblink > 100)
                 {
-                    lastUSRblink = millis();
+                    lastUSRblink = time;
                     lcd.clear();
-                    lcd.setCursor(0, 0);
-                    lcd.print("Set Motion Time");
-                    lcd.setCursor(0, 1);
-                    lcd.print(int(100 * motion_time));
-                    lcd.print(" mSec");
+                    display_lines("Set Motion Time", int(100 * motion_time) + " mSec");
                 }
             }
             delay(500);
@@ -595,11 +593,14 @@ void exit_menu()
 
 void run_profile_func()
 {
-    if (millis() - lastIndex >= wanted_cycle_time)  // do when cycle time was reached
+    unsigned long time;
+    // Returns the number of milliseconds passed since the Arduino board began running the current program. This number will overflow (go back to zero), after approximately 50 days.
+    time = millis();
+    if (time - lastIndex >= wanted_cycle_time)  // do when cycle time was reached
     {
-        cycles_lost = (millis() - lastIndex) / wanted_cycle_time - 1;
+        cycles_lost = (time - lastIndex) / wanted_cycle_time - 1;
         cycles_lost = constrain(cycles_lost, 0, 15);
-        lastIndex = millis();  // last start of cycle time
+        lastIndex = time;  // last start of cycle time
         calculate_wanted_pos_vel();
 
         if (100 * abs(error) / (max_arm_pos - min_arm_pos) > motion_control_allowed_error
@@ -646,10 +647,10 @@ void run_profile_func()
                 sent_LCD = 1;
                 display_LCD();  // update the display at the end of cycle
             }
-            if (millis() - start_wait < breath_cycle_time)
+            if (time - start_wait < breath_cycle_time)
             {
-                index = profile_length - 2;
-                in_wait = 1;  // still need to wait ...
+                index = profile_length - 2;  //Why jumps of 2, index typically is increments by 1?
+                in_wait = 1;  // still need to wait ...  no need for in_wait? if index is increment by 1 then this can use odd() +> if ( (i & 0x01) == 1) { do_something(); } even => if ( (i & 0x01) == 0) { do_something(); }
             }
             else
                 start_new_cycle();  // time has come ... start from index = 0
@@ -707,21 +708,22 @@ void calculate_wanted_pos_vel()
 
 void standby_func()  // not running profile
 {
+    unsigned long time = millis();
     if (USR_status)
     {
-        if (millis() - lastUSRblink > 10)
+        if (time - lastUSRblink > 10)
         {
             USR_status = 0;
-            lastUSRblink = millis();
+            lastUSRblink = time;
             LED_USR(0);
         }
     }
     else
     {
-        if (millis() - lastUSRblink > 490)
+        if (time - lastUSRblink > 490)
         {
             USR_status = 1;
-            lastUSRblink = millis();
+            lastUSRblink = time;
             LED_USR(1);
         }
     }
@@ -767,20 +769,11 @@ void start_new_cycle()
     high_pressure_detected = 0;
 }
 
-int range_pot(int val, int low, int high)
-{
-    int new_val;
-    new_val = int(long(val - low) * long(1023) / (high - low));
-    new_val = constrain(new_val, 0, 1023);
-    return (new_val);
-}
 
 void find_min_max_pressure()
 {
-    if (max_pressure < pressure_abs)
-        max_pressure = pressure_abs;  // find the max pressure in cycle
-    if (min_pressure > pressure_abs)
-        min_pressure = pressure_abs;  // find the min pressure in cycle
+    min_pressure = min(pressure_abs, min_pressure);   // find the min pressure in cycle
+    max_pressure = max(pressure_abs, max_pressure);  // find the max pressure in cycle
     if (index > profile_length - 10 && index < profile_length - 5)
     {
         prev_min_pressure = min_pressure;
@@ -795,23 +788,24 @@ void find_min_max_pressure()
 
 void blink_user_led()
 {
+    unsigned long time = millis();
     if (high_pressure_detected || safety_pressure_detected)  // blink LED fast
     {
         if (USR_status)
         {
-            if (millis() - lastUSRblink > 20)
+            if (time - lastUSRblink > 20)
             {
                 USR_status = 0;
-                lastUSRblink = millis();
+                lastUSRblink = time;
                 LED_USR(0);
             }
         }
         else
         {
-            if (millis() - lastUSRblink > 80)
+            if (time - lastUSRblink > 80)
             {
                 USR_status = 1;
-                lastUSRblink = millis();
+                lastUSRblink = time;
                 LED_USR(1);
             }
         }
@@ -872,34 +866,37 @@ void calc_failure()
 
 void display_text_2_lines(char const *message1, char const *message2)
 {
-    if (millis() - lastUSRblink > 100)
+    unsigned long time = millis();
+    if (time - lastUSRblink > 100)
     {
-        lastUSRblink = millis();
-        lcd.clear();
-        lcd.setCursor(0, 0);
-        lcd.print(message1);
-        lcd.setCursor(0, 1);
-        lcd.print(message2);
+        lastUSRblink = time;
+        display_lines(message1,message2);
     }
 }
 
 void display_text_calib(char const *message)
 {
+    display_lines(message,"Then press Test");
+}
+
+void display_lines(char const *line1, char const *line2)
+{
     lcd.clear();
     lcd.setCursor(0, 0);
-    lcd.print(message);
+    lcd.print(line1);
     lcd.setCursor(0, 1);
-    lcd.print("Then press Test");
+    lcd.print(line2);
 }
 
 void display_pot_during_calib()
 {
-    if (millis() - lastUSRblink > 100)
+    unsigned long time = millis();
+    if (time - lastUSRblink > 100)
     {
         lcd.setCursor(13, 0);
         lcd.print(A_pot);
         lcd.print(" ");
-        lastUSRblink = millis();
+        lastUSRblink = time;
     }
 }
 
@@ -1026,6 +1023,7 @@ void reset_failures()
 
 void set_motor_PWM(float wanted_vel_PWM)
 {
+
     if (abs(A_pot - prev_A_pot) > 0 || abs(wanted_vel_PWM) < 15)
         index_last_motion = index;
     if (calibON == 1)
@@ -1040,15 +1038,11 @@ void set_motor_PWM(float wanted_vel_PWM)
     if (motion_failure == 1 && calibON == 0)
         wanted_vel_PWM = 0;
     if (wanted_vel_PWM > 0)
-        wanted_vel_PWM += 3;  // undo controller dead band
+        wanted_vel_PWM += 3;  // undo controller dead band  //Needs more explanation
     if (wanted_vel_PWM < 0)
         wanted_vel_PWM -= 3;  // undo controller dead band
-    if (wanted_vel_PWM > PWM_max)
-        wanted_vel_PWM = PWM_max;  // limit PWM
-    if (wanted_vel_PWM < PWM_min)
-        wanted_vel_PWM = PWM_min;  // limit PWM
-    motorPWM = PWM_mid + int(wanted_vel_PWM);
-    motor.write(motorPWM);
+    wanted_vel_PWM = max(min(wanted_vel_PWM,PWM_max), PWM_min); // limit PWM
+    motor.write(PWM_mid + int(wanted_vel_PWM));
 }
 
 int read_motion_for_calib()
@@ -1165,15 +1159,12 @@ void read_IO()
     {
         analogReadPots();
         //This calculation should be in a function to make it easier to modify and add more safe guards
-        Compression_perc = LOWER_VOLUME_DISPLAY_PERCENT
-                           + int(float(A_comp) * (100 - LOWER_VOLUME_DISPLAY_PERCENT) / 1023);
-        Compression_perc = constrain(Compression_perc, LOWER_VOLUME_DISPLAY_PERCENT, 100);   //Need alarm if this value is outside the range
-
-        BPM = 6 + (A_rate - 23) / 55;           // 0 is 6 breaths per minute, 1023 is 24 BPM
+   //Need alarm if this value is outside the range
+        Compression_perc = map(A_comp, comp_pot_low, comp_pot_high, LOWER_VOLUME_DISPLAY_PERCENT, 100);
+        BPM = 6 + (A_rate - 23) / 55;           // 0 is 6 breaths per minute, 1023 is 24 BPM  ??Where is 55 coming from?
         breath_cycle_time = 60000 / BPM + 100;  // in milisec
 
-        insp_pressure = 30 + A_pres / 25;  // 0 is 30 mBar, 1023 is 70 mBar   //Most of this calculation should be in a function to make it easier to modify and add more safe guards
-        insp_pressure = constrain(insp_pressure, 30, 70);  //Need alarm if this value is outside the range
+        insp_pressure = constrain(30 + A_pres / 25, 30, 70);  // 0 is 30 mBar, 1023 is 70 mBar   //Most of this calculation should be in a function to make it easier to modify and add more safe guards
         if (abs(insp_pressure - prev_insp_pressure) > 1)
         {
             prev_insp_pressure = insp_pressure;
@@ -1191,57 +1182,46 @@ void read_IO()
         {
             if (FD == 0 && prev_FD == 1)
             {
-                BPM -= 2;
-                if (BPM < 6)
-                    BPM = 6;
+                BPM = max(BPM - 2, 6);
                 cycle_number = 0;
             }
             if (FU == 0 && prev_FU == 1)
             {
-                BPM += 2;
-                if (BPM > 24)
-                    BPM = 24;
+ 
+                BPM = min(BPM + 2, 24);
                 cycle_number = 0;
             }
             breath_cycle_time = 60000 / BPM + 100;
             if (AD == 0 && prev_AD == 1)
             {
-                Compression_perc -= DELTA_COMPRESSION_PERCENT;
-                if (Compression_perc < LOWER_VOLUME_DISPLAY_PERCENT)
-                    Compression_perc = LOWER_VOLUME_DISPLAY_PERCENT;
+                 Compression_perc = max(Compression_perc - DELTA_COMPRESSION_PERCENT, LOWER_VOLUME_DISPLAY_PERCENT);    
             }
             if (AU == 0 && prev_AU == 1)
             {
-                Compression_perc += DELTA_COMPRESSION_PERCENT;
-                if (Compression_perc > 100)
-                    Compression_perc = 100; 
+                Compression_perc = min(Compression_perc + DELTA_COMPRESSION_PERCENT, 100);    
+
             }
         }
         if (TST == 1)
         {
             if (FD == 0 && prev_FD == 1)
             {
-                insp_pressure -= 5;
-                if (insp_pressure < 30)
-                    insp_pressure = 30;
+                 insp_pressure = max(insp_pressure - 5, 30);    
+
             }
             if (FU == 0 && prev_FU == 1)
             {
-                insp_pressure += 5;
-                if (insp_pressure > 70)
-                    insp_pressure = 70;
+
+                insp_pressure = min(insp_pressure + 5, 70);
             }
             if (AD == 0 && prev_AD == 1)
             {
-                insp_pressure -= 5;
-                if (insp_pressure < 30)
-                    insp_pressure = 30;
+
+                insp_pressure = max(insp_pressure - 5, 30);   
             }
             if (AU == 0 && prev_AU == 1)
             {
-                insp_pressure += 5;
-                if (insp_pressure > 70)
-                    insp_pressure = 70;
+                insp_pressure = min(insp_pressure + 5, 70);
             }
         }
     }
@@ -1251,20 +1231,17 @@ void read_IO()
                        + (Compression_perc - LOWER_VOLUME_DISPLAY_PERCENT)
                              * (100 - LOWER_VOLUME_PERCENT) / (100 - LOWER_VOLUME_DISPLAY_PERCENT);
         range_factor = range_factor / 100;
-        if (range_factor > 1)
-            range_factor = 1; //Need alarm if this line is executed
-        if (range_factor < 0)
-            range_factor = 0; //Need alarm if this line is executed
+        range_factor = min(max(range_factor, 0), 1);
     }
 
 #if (PRESSURE_SENSOR_AVAILABLE == 1)
     {
-        if (millis() - last_read_pres > 100)
+        unsigned long time = millis();
+        if (time - last_read_pres > 100)
         {
-            last_read_pres = millis();
+            last_read_pres = time;
             pressure_abs = int(sparkfumPress.getPressure(ADC_4096) - pressure_baseline);  // mbar
-            if (pressure_abs < 0)
-                pressure_abs = 0;  //Need alarm if this line is executed
+            pressure_abs = max(pressure_abs, 0);
         }
     }
 #endif
@@ -1272,12 +1249,8 @@ void read_IO()
     if (prev_BPM != BPM || prev_Compression_perc != Compression_perc)
         display_LCD();
     wanted_cycle_time = int(100) * int(motion_time) / profile_length;
+    wanted_cycle_time = min(max(wanted_cycle_time, breath_cycle_time / profile_length, cycleTime);
 
-    
-    if (wanted_cycle_time > breath_cycle_time / profile_length)
-        wanted_cycle_time = breath_cycle_time / profile_length;
-    if (wanted_cycle_time < cycleTime)
-        wanted_cycle_time = cycleTime;
 }
 
 void analogReadPots()
@@ -1291,7 +1264,7 @@ void analogReadPots()
 int low_pass_filter(pin, current_value, old_value, low, high)
 {
     int value;
-    analogRead(pin);  //read the input pin
+    current_value = analogRead(pin);  //read the input pin
     if (abs(current_value - old_value) < 5) {
         value = POT_ALPHA * current_value + (1 - POT_ALPHA) * old_value;  
         return map(value, 0, 1023, low, high); // maps 0-1023 to low-max range, check 
