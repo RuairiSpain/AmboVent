@@ -1,0 +1,23 @@
+{
+    "configurations": [
+        {
+            "name": "Win32",
+            "includePath": [
+                "C:\\Users\\ruair\\AppData\\Local\\Arduino15\\packages\\arduino\\tools\\**",
+                "C:\\Users\\ruair\\AppData\\Local\\Arduino15\\packages\\arduino\\hardware\\avr\\1.8.2\\**",
+                "${workspaceFolder}/3-Software/Arduino/Libraries/Arduino-LiquidCrystal-I2C-library-master",
+                "${workspaceFolder}/3-Software/Arduino/Libraries/SparkFun_MS5803-14BA_Breakout_Arduino_Library-master/src",
+                "${workspaceFolder}/3-Software/Arduino/Libraries/Servo/src",
+                "${workspaceFolder}/3-Software/Arduino/Libraries/ArduinoUniqueID"
+            ],
+            "forcedInclude": [
+                "C:\\Users\\ruair\\AppData\\Local\\Arduino15\\packages\\arduino\\hardware\\avr\\1.8.2\\cores\\arduino\\Arduino.h"
+            ],
+            "intelliSenseMode": "msvc-x64",
+            "compilerPath": "C:/Program Files (x86)/Microsoft Visual Studio/2017/BuildTools/VC/Tools/MSVC/14.15.26726/bin/Hostx64/x64/cl.exe",
+            "cStandard": "c11",
+            "cppStandard": "c++17"
+        }
+    ],
+    "version": 4
+}
