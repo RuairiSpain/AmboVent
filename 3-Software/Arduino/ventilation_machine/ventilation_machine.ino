@@ -1249,7 +1249,7 @@ void read_IO()
     if (prev_BPM != BPM || prev_Compression_perc != Compression_perc)
         display_LCD();
     wanted_cycle_time = int(100) * int(motion_time) / profile_length;
-    wanted_cycle_time = min(max(wanted_cycle_time, breath_cycle_time / profile_length, cycleTime);
+    wanted_cycle_time = min(max(wanted_cycle_time, breath_cycle_time / profile_length), cycleTime);
 
 }
 
@@ -1261,7 +1261,7 @@ void analogReadPots()
     A_pres = low_pass_filter(pin_PRE, A_pres, pot_pres, pres_pot_low, pres_pot_high);
 }
 
-int low_pass_filter(pin, current_value, old_value, low, high)
+int low_pass_filter(int16_t pin, int16_t current_value, int16_t old_value, int16_t low, int16_t high)
 {
     int value;
     current_value = analogRead(pin);  //read the input pin
